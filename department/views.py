@@ -2,21 +2,28 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib import messages
-from .models import Department
+from .models import Department,Role,CustomUser
 from .forms import DepartmentForm,RegisterForm
 from django.shortcuts import render, redirect,get_object_or_404
+from roles.models import Role
 
 def register(request):
-    if request.method == 'POST':
-        reg=RegisterForm(request.POST)
-        if reg.is_valid():
-            reg.save()
-            messages.success(request,'Registration Successfully !!')
-            return redirect('login')
-    else:
-        reg=RegisterForm()
-    return render(request,'core/register.html',{'reg':reg})
+    if request.user.is_superuser:
+        if request.method == 'POST':
+            reg = RegisterForm(request.POST)
+            if reg.is_valid():
+                reg.save()
+                messages.success(request, 'Registration Successful!')
+                return redirect('dashboard')  # Redirect to the dashboard after successful registration
+            else:
+                messages.error(request, 'Error in registration form. Please correct the errors below.')
+        else:
+            reg = RegisterForm()  # Initialize the form if the method is not POST
 
+        return render(request, 'core/register.html', {'reg': reg})  # Render the registration form template
+    else:
+        messages.error(request, 'You are not authorized to view this page.')
+        return redirect('home_page')  # Redirect to home if the user is not a superuser
 
 def login_view(request):
     if request.method == 'POST':
@@ -50,7 +57,14 @@ def dashboard(request):
         messages.error(request, 'Access restricted to administrators.')
         return redirect('login')
     departments = Department.objects.filter(status=True)
-    return render(request, 'core/Admin_dashboard.html', {'departments': departments})
+    roles = Role.objects.all()
+    customuser = CustomUser.objects.all()
+
+    return render(request, 'core/Admin_dashboard.html', {
+        'departments': departments,
+        'roles': roles,
+        'customuser': customuser
+    })
 
 @login_required
 def user_dashboard(request):
